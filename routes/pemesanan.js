@@ -1,20 +1,17 @@
-//import library
 const express = require("express");
 const bodyParser = require("body-parser");
 const { Op } = require("sequelize");
+//const isResepsionis = require("../isResepsionis")
 const auth = require("../auth");
 
-//implementasi library
 const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-//import model
 const model = require("../models/index");
 const pemesanan = model.pemesanan;
 
-// get all data pemesanan
-app.get("/getAllData", auth, async (req, res) => {
+app.get("/getAllData",auth,  async (req, res) => {
   await pemesanan
     .findAll({
       include: [
@@ -42,8 +39,7 @@ app.get("/getAllData", auth, async (req, res) => {
     });
 });
 
-// get data by id pemesanan
-app.get("/getById/:id", auth, async (req, res) => {
+app.get("/getById/:id",auth,  async (req, res) => {
   await pemesanan
     .findByPk(req.params.id, {
       include: [
@@ -78,7 +74,42 @@ app.get("/getById/:id", auth, async (req, res) => {
     });
 });
 
-// create pemesanan
+app.get("/getByIdUser/:id_user",auth,  async (req, res) => {
+  await pemesanan
+    .findAll({
+      where: { id_user: req.params.id_user },
+      include: [
+        {
+          model: model.tipe_kamar,
+          as: "tipe_kamar",
+        },
+        {
+          model: model.user,
+          as: "user",
+        },
+      ],
+    })
+    .then((result) => {
+      if (result) {
+        res.status(200).json({
+          status: "success",
+          data: result,
+        });
+      } else {
+        res.status(404).json({
+          status: "error",
+          message: "data not found",
+        });
+      }
+    })
+    .catch((error) => {
+      res.status(400).json({
+        status: "error",
+        message: error.message,
+      });
+    });
+});
+
 app.post("/create", async (req, res) => {
   const data = {
     nomor_pemesanan: "PMS AUL-" + Date.now(),
@@ -109,11 +140,8 @@ app.post("/create", async (req, res) => {
     });
 });
 
-// delete pemesanan
-app.delete("/delete/:id_pemesanan", auth, async (req, res) => {
+app.delete("/delete/:id_pemesanan",auth,  async (req, res) => {
   const param = { id_pemesanan: req.params.id_pemesanan };
-
-  // delete data
   pemesanan
     .destroy({ where: param })
     .then((result) => {
@@ -138,8 +166,7 @@ app.delete("/delete/:id_pemesanan", auth, async (req, res) => {
     });
 });
 
-// edit pemesanan
-app.patch("/edit/:id_pemesanan", auth, async (req, res) => {
+app.patch("/edit/:id_pemesanan",auth,  async (req, res) => {
   const param = { id_pemesanan: req.params.id_pemesanan };
   const data = {
     nama_pemesan: req.body.nama_pemesan,
@@ -154,46 +181,51 @@ app.patch("/edit/:id_pemesanan", auth, async (req, res) => {
   };
 
   pemesanan.findOne({ where: param }).then((result) => {
-    if (result) {
-      pemesanan
-        .update(data, { where: param })
-        .then((result) => {
-          res.status(200).json({
-            status: "success",
-            message: "data has been updated",
-            data: {
-              id_pemesanan: param.id_pemesanan,
-              nomor_kamar: data.nomor_kamar,
-              id_tipe_kamar: data.id_tipe_kamar,
-              nama_pemesan: data.nama_pemesan,
-              email_pemesan: data.email_pemesan,
-              tgl_check_in: data.tgl_check_in,
-              tgl_check_out: data.tgl_check_out,
-              nama_tamu: data.nama_tamu,
-              jumlah_kamar: data.jumlah_kamar,
-              id_tipe_kamar: data.id_tipe_kamar,
-              id_user: data.id_user,
-              status_pemesanan: data.status_pemesanan,
-            },
-          });
+    if (data.status_pemesanan == "check_out") {
+      model.detail_pemesanan
+        .findAll({
+          where: { id_pemesanan: req.params.id_pemesanan },
         })
-        .catch((error) => {
-          res.status(400).json({
-            status: "error",
-            message: error.message,
-          });
+        .then((result) => {
+          model.kamar
+            .update(
+              {
+                check_in: null,
+                check_out: null,
+              },
+              {
+                where: {
+                  id_kamar: result[0].id_kamar,
+                },
+              }
+            )
+            .then((result) => {
+              console.log("kamar updated");
+            })
+            .catch((error) => {
+              console.log(error.message);
+            });
         });
-    } else {
-      res.status(404).json({
-        status: "error",
-        message: "data not found",
-      });
     }
+    pemesanan
+      .update(data, { where: param })
+      .then((result) => {
+        res.status(200).json({
+          status: "success",
+          message: "pemesanan has been updated",
+          data: result,
+        });
+      })
+      .catch((error) => {
+        res.status(400).json({
+          status: "error",
+          message: error.message,
+        });
+      });
   });
 });
 
-// search pemesanan
-app.get("/search/:nama_tamu", auth, async (req, res) => {
+app.get("/search/:nama_tamu",auth,  async (req, res) => {
   pemesanan
     .findAll({
       where: {
@@ -231,12 +263,55 @@ app.get("/search/:nama_tamu", auth, async (req, res) => {
     });
 });
 
-// filter pemesanan by check in
-app.get("/filter/check_in/:tgl_check_in", auth, async (req, res) => {
+app.post("/searchByEmailAndNumber",auth,  async (req, res) => {
   pemesanan
     .findAll({
       where: {
-        tgl_check_in: req.params.tgl_check_in,
+        email_pemesan: req.body.email,
+        nomor_pemesanan: req.body.nomor_pemesanan,
+      },
+      include: [
+        {
+          model: model.tipe_kamar,
+          as: "tipe_kamar",
+        },
+        {
+          model: model.user,
+          as: "user",
+        },
+      ],
+    })
+    .then((result) => {
+      res.status(200).json({
+        status: "success",
+        message:
+          "result of email pemesan " +
+          req.params.email_pemesan +
+          " and nomor pemesanan " +
+          req.params.nomor_pemesanan +
+          "",
+        data: result,
+      });
+    })
+    .catch((error) => {
+      res.status(400).json({
+        status: "error",
+        message: error.message,
+      });
+    });
+});
+
+app.get("/filter/check_in/:tgl_check_in",auth,  async (req, res) => {
+  const tgl_check_in = req.params.tgl_check_in.slice(0, 10);
+  pemesanan
+    .findAll({
+      where: {
+        tgl_check_in: {
+          [Op.between]: [
+            tgl_check_in + " 00:00:00",
+            tgl_check_in + " 23:59:59",
+          ],
+        },
       },
       include: [
         {

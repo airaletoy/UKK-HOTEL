@@ -1,20 +1,16 @@
-//import library
 const express = require("express");
 const bodyParser = require("body-parser");
 const { Op } = require("sequelize");
 const auth = require("../auth");
 
-//implementasi library
 const app = express();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-//import model
 const model = require("../models/index");
 const detail_pemesanan = model.detail_pemesanan;
 
-// get all data detail pemesanan
-app.get("/getAllData", auth, async (req, res) => {
+app.get("/getAllData",auth,  async (req, res) => {
   await detail_pemesanan
     .findAll({
       include: [
@@ -42,8 +38,7 @@ app.get("/getAllData", auth, async (req, res) => {
     });
 });
 
-// get data by id detail pemesanan
-app.get("/getById/:id", auth, async (req, res) => {
+app.get("/getById/:id",auth,  async (req, res) => {
   await detail_pemesanan
     .findByPk(req.params.id, {
       include: [
@@ -78,13 +73,14 @@ app.get("/getById/:id", auth, async (req, res) => {
     });
 });
 
-// create detail pemesanan
 app.post("/create", async (req, res) => {
   const data = {
     id_pemesanan: req.body.id_pemesanan,
     id_kamar: req.body.id_kamar,
     tgl_akses: req.body.tgl_akses,
     harga: req.body.harga,
+    check_in: req.body.check_in,
+    check_out: req.body.check_out,
   };
   await detail_pemesanan
     .create(data)
@@ -103,11 +99,8 @@ app.post("/create", async (req, res) => {
     });
 });
 
-// delete detail pemesanan
-app.delete("/delete/:id_detail_pemesanan", auth, async (req, res) => {
+app.delete("/delete/:id_detail_pemesanan",auth,  async (req, res) => {
   const param = { id_detail_pemesanan: req.params.id_detail_pemesanan };
-
-  // delete data
   detail_pemesanan
     .destroy({ where: param })
     .then((result) => {
@@ -132,8 +125,7 @@ app.delete("/delete/:id_detail_pemesanan", auth, async (req, res) => {
     });
 });
 
-// edit detail pemesanan
-app.patch("/edit/:id_detail_pemesanan", auth, async (req, res) => {
+app.patch("/edit/:id_detail_pemesanan",auth,  async (req, res) => {
   const param = { id_detail_pemesanan: req.params.id_detail_pemesanan };
   const data = {
     id_pemesanan: req.body.id_pemesanan,
@@ -174,8 +166,7 @@ app.patch("/edit/:id_detail_pemesanan", auth, async (req, res) => {
   });
 });
 
-// search nomor kamar
-app.get("/search/:id_kamar", auth, async (req, res) => {
+app.get("/search/:id_kamar",auth,  async (req, res) => {
   detail_pemesanan
     .findAll({
       where: {
